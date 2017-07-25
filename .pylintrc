@@ -1,0 +1,3 @@
+[MESSAGES CONTROL]
+# Allow TODOs to be submitted.
+disable=fixme,long-suffix
