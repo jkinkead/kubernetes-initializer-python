@@ -23,3 +23,7 @@ After optionally setting up a virtual environment, you should install the requir
 ```
 pip3 install -r requirements.txt
 ```
+
+## Style & Formatting
+
+TODO: Document!
