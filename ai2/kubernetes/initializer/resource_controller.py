@@ -21,6 +21,23 @@ class ResourceController(object):
         """Returns the list of all items of the handled type in the Kubernetes server."""
         return self._resource_handler.list_all_items()
 
+    def async_list_items(self, item_callback, error_callback):
+        """
+        Starts asynchronous reading of this handler's items using a 'watch' request.
+
+        Args:
+            item_callback: The function to call for each item of the handled type returned from the
+                Kubernetes server. This will be invoked for each ADDED and MODIFIED event, but not
+                for any DELETED event.
+            error_callback: The function to invoke with any exception caught. This should log the
+                exception, and re-invoke async_list_items if desired.
+
+        Returns:
+            The thread handling the watch request.
+        """
+        return self._resource_handler.async_list_items(
+            item_callback=item_callback, error_callback=error_callback)
+
     def update_item(self, item):
         """
         Sends an update for the given item to the Kubernetes API.

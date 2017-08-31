@@ -5,7 +5,13 @@ This contains a parent class, as well as instantiations of that class for common
 Handlers).
 """
 
+import logging
+
 import kubernetes
+from kubernetes.watch.watch import iter_resp_lines
+from urllib3.exceptions import ReadTimeoutError
+
+logger = logging.getLogger(__name__)
 
 
 class ResourceHandler(object):
@@ -16,7 +22,7 @@ class ResourceHandler(object):
     writing changes to those items back to the API.
     """
 
-    def __init__(self, name, list_all_items, update_item):
+    def __init__(self, name, list_all_items, update_item, request_timeout_seconds=30):
         """
         Args:
             name: A user-friendly name for logging and error reporting.
@@ -30,14 +36,72 @@ class ResourceHandler(object):
 
                 IMPORTANT NOTE: Per issue https://github.com/kubernetes/kubernetes/issues/49814,
                 this *must* be a replace_ method, NOT a patch_ method.
+            request_timeout_seconds: The amount of time to allow a `watch` request to be idle before
+                reconnecting.
         """
         self.name = name
         self._list_all_items = list_all_items
         self._update_item = update_item
+        self._request_timeout_seconds = request_timeout_seconds
 
     def list_all_items(self):
         """Returns the list of all items of the handled type in the Kubernetes server."""
         return self._list_all_items(include_uninitialized="true")
+
+    def async_list_items(self, item_callback, error_callback):
+        """
+        Starts asynchronous reading of this handler's items using a 'watch' request.
+
+        Args:
+            item_callback: The function to call for each item of the handled type returned from the
+                Kubernetes server. This will be invoked for each ADDED and MODIFIED event, but not
+                for any DELETED event.
+            error_callback: The function to invoke with any exception caught. This should log the
+                exception, and re-invoke async_list_items if desired.
+
+        Returns:
+            The thread handling the watch request.
+        """
+
+        def handle_response(response):
+            """Handles the response of a watch request."""
+            watch = kubernetes.watch.Watch()
+            return_type = watch.get_return_type(self._list_all_items)
+            try:
+                # This will leave a watch connection open indefinitely.
+                for line in iter_resp_lines(response):
+                    event = watch.unmarshal_event(line, return_type)
+                    event_type = event['type']
+                    if event_type == 'MODIFIED' or event_type == 'ADDED':
+                        item = event['object']
+                        item_callback(item)
+                    else:
+                        logger.debug('Ignored event type {} for item {}:{}'.format(
+                            event_type, item.metadata.namespace, item.metadata.name))
+            except ReadTimeoutError as timeout:
+                # This is expected to occur when we hit _request_timeout below. We need to have a
+                # request timeout, else we won't detect dropped network connections or restarted API
+                # servers.
+                logger.debug('Request timeout; ignoring.')
+            except Exception as e:
+                error_callback(e)
+            finally:
+                response.close()
+                response.release_conn()
+            # TODO(jkinkead): Figure out how to track threads and failures.
+            self._list_all_items(
+                include_uninitialized=True,
+                watch=True,
+                callback=handle_response,
+                _request_timeout=self._request_timeout_seconds,
+                _preload_content=False)
+
+        return self._list_all_items(
+            include_uninitialized=True,
+            watch=True,
+            callback=handle_response,
+            _request_timeout=self._request_timeout_seconds,
+            _preload_content=False)
 
     def update_item(self, item):
         """
