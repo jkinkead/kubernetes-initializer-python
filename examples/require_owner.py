@@ -29,15 +29,11 @@ def main():
         # All of our controllers can use the same handler function, since it only operates on
         # top-level metadata. You will probably need separate handler functions for more interesting
         # controllers.
-        pod_controller = SimpleResourceController(
-            ResourceHandler.pod_handler(api_client), handle_item)
         job_controller = SimpleResourceController(
             ResourceHandler.job_handler(api_client), handle_item)
-        deployment_controller = SimpleResourceController(
-            ResourceHandler.deployment_handler(api_client), handle_item)
-        all_controllers = [pod_controller, job_controller, deployment_controller]
+        all_controllers = [job_controller]
         # The name here should match what you've configurd in your InitializerConfiguration.
-        return InitializerController('owner.require.example', all_controllers)
+        return InitializerController('initializer.infrastructure.ai2', all_controllers)
 
     main_loop(build_initializer)
 

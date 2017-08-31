@@ -7,21 +7,22 @@ from .rejection import Rejection
 logger = logging.getLogger(__name__)
 
 
-class InitializerController(object):
+class AsyncInitializerController(object):
     """
-    InitializerController is responsible for delegating validation logic to type-specific
+    AsyncInitializerController is responsible for delegating validation logic to type-specific
     controllers.
 
     This handles the core initializer logic, matching the initializer list for retrieved resources
     against the configured initializer name, while delegating API calls and logic to the
     sub-controller.
 
-    The entry method is handle_update, which runs a single lookup-update loop over all controllers.
+    The entry method is start_async_update, which starts asynchronous watch-updates over all
+    controllers.
     """
 
     def __init__(self, initializer_name, controllers):
         """
-        Builds a InitializerController handling the given initializer name with the given
+        Builds an AsyncInitializerController handling the given initializer name with the given
         controllers.
 
         Args:
@@ -34,16 +35,9 @@ class InitializerController(object):
         self.controllers = controllers
 
     def async_handle_updates(self):
-        def handle_error(err):
-            logger.error('Err: {}'.format(err))
-
         for controller in self.controllers:
-
-            def handle_item(item):
-                self._handle_single_item(controller, item)
-
             # TODO(jkinkead): Track threads.
-            thread = controller.async_list_items(handle_item, handle_error)
+            thread = controller.async_process_items(self, controller)
 
     def handle_update(self):
         """Finds and updates all items in need of update, using the wrapped controllers.
@@ -77,7 +71,7 @@ class InitializerController(object):
             # TODO(jkinkead): CLEAN UP
             controller.async_process_items(self)
 
-    def _handle_single_item(self, controller, item):
+    def handle_single_item(self, controller, item):
         """Updates the given item, if needed, using the given controller.
 
         Args:

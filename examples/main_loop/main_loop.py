@@ -26,7 +26,7 @@ def main_loop(controller_constructor):
         level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(name)s:%(lineno)s - %(message)s')
 
     # Reduce log level for dependency libraries.
-    logging.getLogger('kubernetes').setLevel(logging.INFO)
+    # logging.getLogger('kubernetes').setLevel(logging.INFO)
 
     # Optional: Set the log level for 'ai2.kubernetes.initializer':
     # logging.getLogger('ai2.kubernetes.initializer').setLevel(logging.INFO)
@@ -40,10 +40,8 @@ def main_loop(controller_constructor):
     # We want this loop to run frequently enough that clients aren't timing out while waiting for
     # the initializer to complete.
     # This uses a 5-second loop period, but you may wish for a shorter loop.
-    while True:
-        # A production-quality handler should catch exceptions here.
-        controller.handle_update()
-        time.sleep(5)
+    # A production-quality handler should catch exceptions here.
+    controller.async_handle_updates()
 
 
 if __name__ == "__main__":

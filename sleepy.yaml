@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sleepy
+  namespace: testing
+  labels:
+    owner: jessek
+spec:
+  template:
+    metadata:
+      labels:
+        owner: jessek
+    spec:
+      restartPolicy: Never # Can be OnFailure instead, if you want auto-restart.
+      containers:
+        - name: sleepy
+          image: ubuntu:16.04
+          # See
+          # https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
+          # for documentation on the resources section.
+          resources:
+            requests:
+              cpu: 10m
+              memory: 10Mi
+          command:
+            - /bin/sh
+            - -c
+            - "echo Sleeping...; sleep 30"
